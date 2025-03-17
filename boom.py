@@ -5,6 +5,7 @@ from streamlit_folium import st_folium
 import requests
 import paypalrestsdk
 import logging
+import streamlit.components.v1 as components
 
 # Configuration
 st.set_page_config(page_title="Explore India", page_icon="🌐", layout="wide")
@@ -129,7 +130,7 @@ def personalized_chatbot():
             st.write("Our assistant is working on your query. Please wait a moment.")
 
 # Navigation
-page = st.sidebar.radio("Navigate", ["Home", "Destinations", "Interactive Map", "Travel Planner","Hotel Booking", "Weather Forecast", "Advanced Tools", "Contact Us", "Chatbot"])
+page = st.sidebar.radio("Navigate", ["Home", "Destinations", "Interactive Map", "Travel Planner","Hotel Booking", "Weather Forecast", "Advanced Tools", "Contact Us", "Payment"])
 # Home Page
 if page == "Home":
     # Home Page Content (Destinations and Booking)
@@ -228,6 +229,7 @@ if page == "Hotel Reviews":
         # Note: In a real app, you would save the review to a database or file    
 
     # Hotel Booking Section
+    
     st.subheader("🏨 Hotel Booking")
     for i, row in hotels_df.iterrows():
         with st.expander(f"Book {row['Hotel Name']} in {row['Destination']}"):
@@ -240,26 +242,112 @@ if page == "Hotel Reviews":
             if nights:
                 st.write(f"**Total Cost:** ₹{total_cost}")
                 
-            # Adding a booking form
-            if st.button(f"Confirm Booking for {row['Hotel Name']}", key=f"confirm_{i}"):
-                st.subheader("Enter Your Details for Booking:")
+     # Hotel Booking Page with PayPal Integration
+elif page == "Hotel Booking":
+    st.subheader("🏨 Book Your Favorite Hotel")
+    
+    for i, row in hotels_df.iterrows():
+        with st.expander(f"Book {row['Hotel Name']} in {row['Destination']}"):
+            st.image(row["Image"], use_column_width=True)
+            st.write(f"**Cost per Night:** ₹{row['Cost per Night (₹)']} | **Rating:** {row['Rating']} ⭐")
+            
+            nights = st.number_input("Enter Number of Nights:", min_value=1, step=1, key=f"nights_{i}")
+            total_cost = row["Cost per Night (₹)"] * nights
+            
+            if nights:
+                st.write(f"**Total Cost:** ₹{total_cost}")
                 
-                name = st.text_input("Full Name")
-                email = st.text_input("Email")
-                phone = st.text_input("Phone Number")
-                
-                if st.button("Proceed to Payment"):
-                    # Payment Details
-                    card_number = st.text_input("Card Number")
-                    expiry_date = st.text_input("Expiry Date (MM/YY)")
-                    cvv = st.text_input("CVV")
-                    
-                    if st.button("Confirm Payment"):
-                        st.success(f"Payment Confirmed! Your booking for {row['Hotel Name']} in {row['Destination']} has been confirmed! 🎉")
-                        st.write(f"Booking Details:\n Name: {name}\n Email: {email}\n Phone: {phone}")
-                        st.write(f"Hotel: {row['Hotel Name']}\n Total Cost: ₹{total_cost}")
-                        st.balloons()
+           
+# PayPal client ID - Use your own PayPal client ID here.
+PAYPAL_CLIENT_ID = "Ae-2B4oTVFzyz1EiWc7yzDY9FL-B1lvKQhV-UN8HVAJ_UN6tfbVV6_BknWz-0eGNfw6wrjoTaBgNAydf"
 
+# Define hotel prices (in INR)
+hotel_prices = {
+    "Hotel A": 2000,  # Price per night
+    "Hotel B": 2500,
+    "Hotel C": 3000
+}
+
+# Function to handle booking and payment
+def handle_booking_payment(hotel, nights, total_cost, user_info):
+    # Here you can add functionality to store the booking information in a database
+    # For simplicity, let's just show a confirmation message
+    st.write(f"Booking confirmed for {hotel}!")
+    st.write(f"Total cost: ₹{total_cost}")
+    st.write(f"Name: {user_info['name']}")
+    st.write(f"Email: {user_info['email']}")
+    st.write(f"Phone: {user_info['phone']}")
+    st.success("Payment Successful! Your booking is confirmed.")
+
+# Streamlit page setup
+st.title("Hotel Booking System")
+st.write("Please select a hotel, enter your details, and proceed to payment")
+
+# Create booking form
+hotel = st.selectbox("Select Hotel", ["Hotel A", "Hotel B", "Hotel C"])
+nights = st.number_input("Number of Nights", min_value=1, value=1)
+full_name = st.text_input("Full Name")
+email = st.text_input("Email")
+phone = st.text_input("Phone")
+
+# Calculate total cost
+total_cost = hotel_prices[hotel] * nights
+
+# Display booking details
+st.write(f"Hotel: {hotel}")
+st.write(f"Number of Nights: {nights}")
+st.write(f"Total Cost: ₹{total_cost}")
+
+# Create a dictionary to store user info
+user_info = {
+    'name': full_name,
+    'email': email,
+    'phone': phone
+}
+
+# Proceed to payment button
+if st.button("Proceed to Payment"):
+    # Render PayPal button with Streamlit components
+    html_code = f"""
+    <script src="https://www.paypal.com/sdk/js?client-id=Ae-2B4oTVFzyz1EiWc7yzDY9FL-B1lvKQhV-UN8HVAJ_UN6tfbVV6_BknWz-0eGNfw6wrjoTaBgNAydf&currency=INR"></script>
+    <div id="paypal-button-container"></div>
+    <script>
+    paypal.Buttons({{
+        createOrder: function(data, actions) {{
+            return actions.order.create({{
+                purchase_units: [{{
+                    amount: {{
+                        value: '{total_cost:.2f}'
+                    }},
+                    description: 'Hotel Booking for {hotel}'
+                }}]
+            }});
+        }},
+        onApprove: function(data, actions) {{
+            return actions.order.capture().then(function(details) {{
+                alert('Payment successful! Booking confirmed for ' + details.payer.name.given_name);
+                // Store booking info in a database or send confirmation email
+                // Optionally, you could send the details to your backend here
+                window.location.reload(); // Refresh to show the booking confirmation
+            }});
+        }},
+        onCancel: function(data) {{
+            alert('Payment was canceled!');
+        }},
+        onError: function(err) {{
+            console.log(err);
+            alert('An error occurred during payment processing.');
+        }}
+    }}).render('#paypal-button-container');
+    </script>
+    """
+    
+    # Inject the PayPal button using Streamlit's components
+    components.html(html_code, height=500)
+
+# After Payment Success: Show Confirmation Message
+if st.session_state.get('payment_success', False):
+    handle_booking_payment(hotel, nights, total_cost, user_info)
 elif page == "Destinations":
     st.subheader("Find Your Destination")
     category = st.selectbox("Choose a Category", ["All"] + list(destinations_df["Category"].unique()))
@@ -293,66 +381,7 @@ elif page == "Contact Us":
     if st.button("Submit"):
         st.success("Thank you for your message!")
 
-
-# Hotel Booking Page with PayPal Integration
-elif page == "Hotel Booking":
-    st.subheader("🏨 Book Your Favorite Hotel")
-    
-    for i, row in hotels_df.iterrows():
-        with st.expander(f"Book {row['Hotel Name']} in {row['Destination']}"):
-            st.image(row["Image"], use_column_width=True)
-            st.write(f"**Cost per Night:** ₹{row['Cost per Night (₹)']} | **Rating:** {row['Rating']} ⭐")
-            
-            nights = st.number_input("Enter Number of Nights:", min_value=1, step=1, key=f"nights_{i}")
-            total_cost = row["Cost per Night (₹)"] * nights
-            
-            if nights:
-                st.write(f"**Total Cost:** ₹{total_cost}")
-                
-            # Adding a booking form
-            if st.button(f"Confirm Booking for {row['Hotel Name']}", key=f"confirm_{i}"):
-                st.subheader("Enter Your Details for Booking:")
-                
-                name = st.text_input("Full Name")
-                email = st.text_input("Email")
-                phone = st.text_input("Phone Number")
-                
-                if st.button("Proceed to Payment"):
-                    # Now we embed the PayPal button via HTML iframe
-                   st.markdown(
-    f"""
-    <div id="paypal-button-container-{i}">
-        <script src="https://www.paypal.com/sdk/js?client-id=Ae-2B4oTVFzyz1EiWc7yzDY9FL-B1lvKQhV-UN8HVAJ_UN6tfbVV6_BknWz-0eGNfw6wrjoTaBgNAydf&currency=INR"></script>
-        <script>
-            paypal.Buttons({{
-                createOrder: function(data, actions) {{
-                    return actions.order.create({{
-                        purchase_units: [{{
-                            amount: {{
-                                value: "{total_cost}"
-                            }},
-                            description: "{row['Hotel Name']} Booking"
-                        }}]
-                    }});
-                }},
-                onApprove: function(data, actions) {{
-                    return actions.order.capture().then(function(details) {{
-                        alert('Payment Success! Booking Confirmed for {row['Hotel Name']}');
-                    }});
-                }},
-                onCancel: function(data) {{
-                    alert('Payment was canceled!');
-                }}
-            }}).render('#paypal-button-container-{i}');
-        </script>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
-
-
+ 
 # Pricing Calculator
 st.sidebar.subheader("Pricing Calculator")
 days = st.sidebar.number_input("Number of Days", min_value=1, step=1)
