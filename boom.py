@@ -17,7 +17,7 @@ st.markdown(
     """
     <style>
     .stApp {
-        background-image: url('https://wallpapercrafter.com/desktop/38784-Trebarwith-Strand-4k-4K-wallpaper-4K-England-travel-tourism-sunset-cliff-sea.jpg');
+        background-image: url('https://th.bing.com/th/id/R.1a57565e1a8f2b2bdeb899723310ae81?rik=UQmcqSAXD%2fP1LQ&riu=http%3a%2f%2ftravelfore.com%2fwp-content%2fuploads%2f2016%2f04%2fbali.jpg&ehk=v9y0vodV%2bGS1smYLfGV3NX%2fWPGkODQaRrgUDcthpyZ0%3d&risl=&pid=ImgRaw&r=0p');
         background-size: cover;
         background-position: center;
     }
